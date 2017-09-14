@@ -1,5 +1,6 @@
 from app import create_app, db
 import ast
+import base64
 import json
 import os
 import unittest
@@ -25,13 +26,15 @@ class TestCase(unittest.TestCase):
         self.assertIn("already signed up with that email", str(response.data))
 
         response = self.client().post("/authcheck", data=self.auth_token)
-        print response.data
         self.assertEqual(response.status_code, 200)
         self.assertIn("alice@example.com", str(response.data))
 
         response = self.client().post("/authcheck", data="")
         self.assertEqual(response.status_code, 400)
         self.assertIn("invalid token", str(response.data))
+
+        response = self.client().post("/tosts", data="")
+        self.assertEqual(response.status_code, 405)
 
     def tearDown(self):
         with self.app.app_context():

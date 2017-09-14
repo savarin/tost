@@ -1,4 +1,5 @@
 from flask_api import FlaskAPI
+from flask_httpauth import HTTPBasicAuth
 from flask_sqlalchemy import SQLAlchemy
 from flask import jsonify
 from flask import request, jsonify
@@ -19,6 +20,8 @@ def create_app(config_name):
     with app.app_context():
         db.create_all()
         db.session.commit()
+
+    auth = HTTPBasicAuth()
 
 
     @app.route("/signup", methods=["POST"])
@@ -66,5 +69,22 @@ def create_app(config_name):
         response.status_code = 200
         return response
 
+
+    @app.route("/tosts", methods=["GET"])
+    @auth.login_required
+    def tosts():
+        response = jsonify({
+            "foo": "bar"
+        })
+        response.status_code = 200
+        return response
+
+
+    @auth.verify_password
+    def verify_password(email, auth_token):
+        user = User.query.filter_by(_user_email=email).first()
+        if not (user and user._user_auth_token == auth_token):
+            return False
+        return True
 
     return app
