@@ -20,6 +20,7 @@ def create_app(config_name):
         db.create_all()
         db.session.commit()
 
+
     @app.route("/signup", methods=["POST"])
     def signup():
         email = str(request.data.get("email", ""))
@@ -41,5 +42,29 @@ def create_app(config_name):
         })
         response.status_code = 200
         return response
+
+
+    @app.route("/authcheck", methods=["POST"])
+    def authcheck():
+        auth_token = str(request.data.get("auth_token", ""))
+        user = User.query.filter_by(_user_auth_token=auth_token).first()
+
+        if not (user and user._user_auth_token == auth_token):
+            response = jsonify({
+                "code": 20,
+                "msg": "invalid token"
+            })
+            response.status_code = 400
+            return response
+
+        response = jsonify({
+            "user": {
+                "id": user._user_auth_token,
+                "email": user._user_email
+            }
+        })
+        response.status_code = 200
+        return response
+
 
     return app
