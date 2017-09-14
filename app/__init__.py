@@ -1,6 +1,7 @@
 from flask_api import FlaskAPI
 from flask_sqlalchemy import SQLAlchemy
 from flask import jsonify
+from flask import request, jsonify
 
 from config import app_config
 
@@ -19,12 +20,26 @@ def create_app(config_name):
         db.create_all()
         db.session.commit()
 
-    @app.route("/", methods=["GET"])
-    def index():
-        response = jsonify({
-            "foo": "bar"
+    @app.route("/signup", methods=["POST"])
+    def signup():
+        email = str(request.data.get("email", ""))
+        if User.query.filter_by(_user_email=email).first():
+            response = jsonify({
+                "code": 10,
+                "msg": "already signed up with that email"
             })
+            response.status_code = 400
+            return response
+
+        user = User(email=email)
+        user.save()
+        response = jsonify({
+            "user": {
+                "id": user._user_auth_token,
+                "email": user._user_email
+            }
+        })
         response.status_code = 200
-        return response.data
+        return response
 
     return app
