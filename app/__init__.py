@@ -11,7 +11,7 @@ db = SQLAlchemy()
 
 
 def create_app(config_name):
-    from models import db, User
+    from models import db, User, Tost#, Propagation
 
     app = FlaskAPI(__name__)
     app.config.from_object(app_config[config_name])
@@ -47,8 +47,8 @@ def create_app(config_name):
         return response
 
 
-    @app.route("/authcheck", methods=["POST"])
-    def authcheck():
+    @app.route("/login", methods=["POST"])
+    def login():
         auth_token = str(request.data.get("auth_token", ""))
         user = User.query.filter_by(_user_auth_token=auth_token).first()
 
@@ -78,6 +78,9 @@ def create_app(config_name):
         })
         response.status_code = 200
         return response
+
+
+    @app.route("/tost/new")
 
 
     @auth.verify_password

@@ -22,3 +22,30 @@ class User(db.Model):
 
     def __repr__(self):
         return "<email: {}>".format(self._user_email)
+
+
+class Tost(db.Model):
+    tost_id = db.Column(db.String(32), primary_key=True)
+    _tost_body = db.Column(db.String(256))
+    tost_creator_user_id = db.Column(db.String(32))
+    tost_create_timestamp = db.Column(db.DateTime)
+
+    def __init__(self, body, user_id):
+        self.tost_id = create_token()
+        self._tost_body = body
+        self.tost_creation_token = create_token()
+        self.tost_creator_user_id = user_id
+        self.tost_create_timestamp = db.func.current_timestamp()
+
+
+class Propagation(db.Model):
+    ppgn_id = db.Column(db.String(32), primary_key=True)
+    ppgn_tost_id = db.Column(db.String(32), unique=True)
+    ppgn_user_id = db.Column(db.String(32))
+    _ppgn_token = db.Column(db.String(32), unique=True)
+
+    def __init__(self, tost_id, user_id):
+        self.ppgn_id = create_token()
+        self.ppgn_tost_id = tost_id
+        self.ppgn_user_id = user_id
+        self._ppgn_token = create_token()

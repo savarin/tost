@@ -16,8 +16,6 @@ class TestCase(unittest.TestCase):
 
     def test_initialize_user(self):
         response = self.client().post("/signup", data=self.email)
-        auth_token = ast.literal_eval(response.data)["user"]["id"]
-        self.auth_token = {"auth_token": auth_token}
         self.assertEqual(response.status_code, 200)
         self.assertIn("alice@example.com", str(response.data))
 
@@ -25,14 +23,20 @@ class TestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("already signed up with that email", str(response.data))
 
-        response = self.client().post("/authcheck", data=self.auth_token)
+    def test_user_authcheck(self):
+        response = self.client().post("/signup", data=self.email)
+        auth_token = ast.literal_eval(response.data)["user"]["id"]
+        self.auth_token = {"auth_token": auth_token}
+
+        response = self.client().post("/login", data=self.auth_token)
         self.assertEqual(response.status_code, 200)
         self.assertIn("alice@example.com", str(response.data))
 
-        response = self.client().post("/authcheck", data="")
+        response = self.client().post("/login", data="")
         self.assertEqual(response.status_code, 400)
         self.assertIn("invalid token", str(response.data))
 
+    def test_user_authentication(self):
         response = self.client().post("/tosts", data="")
         self.assertEqual(response.status_code, 405)
 
