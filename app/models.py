@@ -4,7 +4,7 @@ from helpers import create_token
 
 class User(db.Model):
     user_id = db.Column(db.String(4), primary_key=True)
-    _user_email = db.Column(db.String(8), unique=True)
+    _user_email = db.Column(db.String(32), unique=True)
     _user_auth_token = db.Column(db.String(8), unique=True)
 
     def __init__(self, email):
@@ -22,8 +22,8 @@ class User(db.Model):
 
 class Tost(db.Model):
     tost_id = db.Column(db.String(4), primary_key=True)
-    _tost_body = db.Column(db.String(16))
-    tost_creator_user_id = db.Column(db.String(8))
+    _tost_body = db.Column(db.String(64))
+    tost_creator_user_id = db.Column(db.String(4))
     tost_create_timestamp = db.Column(db.DateTime)
 
     def __init__(self, body, user_id):

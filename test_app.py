@@ -29,11 +29,11 @@ class TestCase(unittest.TestCase):
         auth_token = ast.literal_eval(response.data)["user"]["id"]
         self.auth_token = {"auth_token": auth_token}
 
-        response = self.client().post("/login", data=self.auth_token)
+        response = self.client().post("/auth", data=self.auth_token)
         self.assertEqual(response.status_code, 200)
         self.assertIn("alice@example.com", str(response.data))
 
-        response = self.client().post("/login", data="")
+        response = self.client().post("/auth", data="")
         self.assertEqual(response.status_code, 400)
         self.assertIn("invalid token", str(response.data))
 
@@ -43,12 +43,16 @@ class TestCase(unittest.TestCase):
         headers = set_header_auth(self.email["email"], auth_token)
         body = {"body": "foo"}
 
-        response = self.client().post("/create", headers=headers, data=body)
+        response = self.client().post("/tost", headers=headers, data=body)
         self.assertEqual(response.status_code, 200)
         self.assertIn("foo", str(response.data))
 
-        response = self.client().post("/create")
+        response = self.client().post("/tost")
         self.assertEqual(response.status_code, 401)
+
+        response = self.client().get("/tost", headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("foo", str(response.data))
 
     def tearDown(self):
         with self.app.app_context():
