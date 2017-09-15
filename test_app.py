@@ -1,4 +1,5 @@
 from app import create_app, db
+from helpers import set_header_auth
 import ast
 import base64
 import json
@@ -14,7 +15,7 @@ class TestCase(unittest.TestCase):
         self.email = {"email": "alice@example.com"}
         self.auth_token = {}
 
-    def test_initialize_user(self):
+    def test_user_signup(self):
         response = self.client().post("/signup", data=self.email)
         self.assertEqual(response.status_code, 200)
         self.assertIn("alice@example.com", str(response.data))
@@ -23,7 +24,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("already signed up with that email", str(response.data))
 
-    def test_user_authcheck(self):
+    def test_user_login(self):
         response = self.client().post("/signup", data=self.email)
         auth_token = ast.literal_eval(response.data)["user"]["id"]
         self.auth_token = {"auth_token": auth_token}
@@ -36,9 +37,18 @@ class TestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("invalid token", str(response.data))
 
-    def test_user_authentication(self):
-        response = self.client().post("/tosts", data="")
-        self.assertEqual(response.status_code, 405)
+    def test_tost_create(self):
+        response = self.client().post("/signup", data=self.email)
+        auth_token = ast.literal_eval(response.data)["user"]["id"]
+        headers = set_header_auth(self.email["email"], auth_token)
+        body = {"body": "foo"}
+
+        response = self.client().post("/create", headers=headers, data=body)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("foo", str(response.data))
+
+        response = self.client().post("/create")
+        self.assertEqual(response.status_code, 401)
 
     def tearDown(self):
         with self.app.app_context():

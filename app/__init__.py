@@ -1,17 +1,16 @@
 from flask_api import FlaskAPI
 from flask_httpauth import HTTPBasicAuth
 from flask_sqlalchemy import SQLAlchemy
-from flask import jsonify
 from flask import request, jsonify
 
 from config import app_config
-
+import helpers
 
 db = SQLAlchemy()
 
 
 def create_app(config_name):
-    from models import db, User, Tost#, Propagation
+    from models import db, User, Tost, Propagation
 
     app = FlaskAPI(__name__)
     app.config.from_object(app_config[config_name])
@@ -27,6 +26,7 @@ def create_app(config_name):
     @app.route("/signup", methods=["POST"])
     def signup():
         email = str(request.data.get("email", ""))
+
         if User.query.filter_by(_user_email=email).first():
             response = jsonify({
                 "code": 10,
@@ -70,17 +70,42 @@ def create_app(config_name):
         return response
 
 
-    @app.route("/tosts", methods=["GET"])
+    @app.route("/create", methods=["POST"])
     @auth.login_required
-    def tosts():
+    def create():
+        body = str(request.data.get("body", ""))
+
+        if not body:
+            response = jsonify({
+                "code": 30,
+                "msg": "invalid",
+                "field": {
+                    "tost": {
+                        "body": "must not be blank"
+                    }
+                }
+            })
+            response.status_code = 400
+            return response
+
+        email, auth_token = helpers.get_header_auth(request)
+        user = User.query.filter_by(_user_email=email).first()
+
+        tost = Tost(body, user.user_id)
+        tost.save()
+
+        ppgn = Propagation(tost.tost_id, user.user_id)
+        ppgn.save()
+
         response = jsonify({
-            "foo": "bar"
+            "tost": {
+                "creator-id": user.user_id,
+                "created-at": tost.tost_create_timestamp,
+                "body": body
+            }
         })
         response.status_code = 200
         return response
-
-
-    @app.route("/tost/new")
 
 
     @auth.verify_password
