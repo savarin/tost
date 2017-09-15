@@ -25,12 +25,16 @@ class Tost(db.Model):
     _tost_body = db.Column(db.String(64))
     tost_creator_user_id = db.Column(db.String(4))
     tost_create_timestamp = db.Column(db.DateTime)
+    _tost_updator_user_id = db.Column(db.String(4))
+    _tost_update_timestamp = db.Column(db.DateTime)
 
     def __init__(self, body, user_id):
         self.tost_id = create_token(4)
         self._tost_body = body
         self.tost_creator_user_id = user_id
         self.tost_create_timestamp = db.func.current_timestamp()
+        self._tost_updator_user_id = user_id
+        self._tost_update_timestamp = db.func.current_timestamp()
 
     def save(self):
         db.session.add(self)
@@ -43,6 +47,8 @@ class Propagation(db.Model):
     ppgn_user_id = db.Column(db.String(4))
     _ppgn_token = db.Column(db.String(8), unique=True)
     _ppgn_parent_id = db.Column(db.String(4))
+    _ppgn_disabled = db.Column(db.Boolean)
+    __ppgn_ancestor_disabled = db.Column(db.Boolean)
 
     def __init__(self, tost_id, user_id):
         self.ppgn_id = create_token(4)
@@ -50,6 +56,8 @@ class Propagation(db.Model):
         self.ppgn_user_id = user_id
         self._ppgn_token = create_token(8)
         self._ppgn_parent_id = None
+        self._ppgn_disabled = False
+        self.__ppgn_ancestor_disabled = False
 
     def save(self):
         db.session.add(self)

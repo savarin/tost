@@ -47,6 +47,10 @@ class TestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("foo", str(response.data))
 
+        response = self.client().post("/tost", headers=headers)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("invalid", str(response.data))
+
         response = self.client().post("/tost")
         self.assertEqual(response.status_code, 401)
 

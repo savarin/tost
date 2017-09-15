@@ -112,70 +112,15 @@ def create_app(config_name):
 
             response = jsonify({
                 "tost": {
-                    "creator-id": user.user_id,
+                    "creator-id": tost.tost_creator_user_id,
                     "created-at": tost.tost_create_timestamp,
+                    "updator-id": tost._tost_updator_user_id,
+                    "updated-at": tost._tost_update_timestamp,
                     "body": body
                 }
             })
             response.status_code = 200
             return response
-
-    @app.route("/list", methods=["GET"])
-    @auth.login_required
-    def list():
-        email, auth_token = helpers.get_header_auth(request)
-        user = User.query.filter_by(_user_auth_token=auth_token).first()
-
-        tosts = Tost.query.filter_by(tost_creator_user_id=user.user_id).all()
-
-        result = {}
-        for tost in tosts:
-            ppgn_token = Propagation.query.filter_by(ppgn_tost_id=tost.tost_id)\
-                                          .filter_by(ppgn_user_id=user.user_id)\
-                                          .first()\
-                                          ._ppgn_token
-            result[ppgn_token[:4]] = tost._tost_body[:32]
-
-        response = jsonify(result)
-        response.status_code = 200
-        return response
-
-    @app.route("/create", methods=["POST"])
-    @auth.login_required
-    def create():
-        body = str(request.data.get("body", ""))
-
-        if not body:
-            response = jsonify({
-                "code": 30,
-                "msg": "invalid",
-                "field": {
-                    "tost": {
-                        "body": "must not be blank"
-                    }
-                }
-            })
-            response.status_code = 400
-            return response
-
-        email, auth_token = helpers.get_header_auth(request)
-        user = User.query.filter_by(_user_auth_token=auth_token).first()
-
-        tost = Tost(body, user.user_id)
-        tost.save()
-
-        ppgn = Propagation(tost.tost_id, user.user_id)
-        ppgn.save()
-
-        response = jsonify({
-            "tost": {
-                "creator-id": user.user_id,
-                "created-at": tost.tost_create_timestamp,
-                "body": body
-            }
-        })
-        response.status_code = 200
-        return response
 
     @auth.verify_password
     def verify_password(email, auth_token):
