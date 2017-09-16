@@ -43,21 +43,23 @@ class Tost(db.Model):
 
 class Propagation(db.Model):
     ppgn_id = db.Column(db.String(4), primary_key=True)
-    ppgn_tost_id = db.Column(db.String(4), unique=True)
+    ppgn_tost_id = db.Column(db.String(4))
     ppgn_user_id = db.Column(db.String(4))
     _ppgn_token = db.Column(db.String(8), unique=True)
     _ppgn_parent_id = db.Column(db.String(4))
+    _ppgn_rank = db.Column(db.Integer)
     _ppgn_disabled = db.Column(db.Boolean)
-    __ppgn_ancestor_disabled = db.Column(db.Boolean)
+    _ppgn_ancestor_disabled = db.Column(db.Boolean)
 
-    def __init__(self, tost_id, user_id):
+    def __init__(self, tost_id, user_id, parent_id=None, rank=0):
         self.ppgn_id = create_token(4)
         self.ppgn_tost_id = tost_id
         self.ppgn_user_id = user_id
         self._ppgn_token = create_token(8)
-        self._ppgn_parent_id = None
+        self._ppgn_parent_id = parent_id
+        self._ppgn_rank = rank
         self._ppgn_disabled = False
-        self.__ppgn_ancestor_disabled = False
+        self._ppgn_ancestor_disabled = False
 
     def save(self):
         db.session.add(self)
