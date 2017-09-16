@@ -166,7 +166,7 @@ def create_app(config_name):
             if user_ppgn._ppgn_rank <= ppgn._ppgn_rank + 1:
                 return 5, user_ppgn._ppgn_token
 
-    @app.route("/tost/<access_token>", methods=["GET"])
+    @app.route("/tost/<access_token>", methods=["GET", "PUT"])
     @auth.login_required
     def tost_by_access_token(access_token):
         email, auth_token = helpers.get_header_auth(request)
@@ -190,6 +190,7 @@ def create_app(config_name):
                                         access_token=access_token))
 
             # case 3: user is creator of tost that propagation points to
+            # case 4: user propagation is of lower priority than propagation in url
             if case in [3, 4]:
                 ppgn = Propagation.query.filter_by(_ppgn_token=access_token).first()
                 tost = Tost.query.filter_by(tost_id=ppgn.ppgn_tost_id).first()
@@ -202,6 +203,50 @@ def create_app(config_name):
             if case == 5:
                 return redirect(url_for("tost_by_access_token",
                                         access_token=access_token))
+
+        if request.method == "PUT":
+            case, access_token = review_access_token(access_token, user.user_id)
+
+            # case 1: propagation invalid
+            if case == 1:
+                response = jsonify({
+                    "code": 40,
+                    "msg": "tost not found"
+                })
+                response.status_code = 404
+                return response
+
+            # case 2: user visits resource for the first time
+            if case == 2:
+                response = jsonify({
+                    "code": 50,
+                    "msg": "please use refreshed access token",
+                    "access-token": access_token
+                })
+                response.status_code = 200
+                return response
+
+            # case 3: user is creator of tost that propagation points to
+            # case 4: user propagation is of lower priority than propagation in url
+            if case in [3, 4]:
+                ppgn = Propagation.query.filter_by(_ppgn_token=access_token).first()
+                tost = Tost.query.filter_by(tost_id=ppgn.ppgn_tost_id).first()
+                tost._tost_body = str(request.data.get("body", ""))
+                tost.save()
+
+                response = create_tost_summary(access_token, tost, tost._tost_body)
+                response.status_code = 200
+                return response
+
+            # case 5: user propagation is of higher priority than propagation in url
+            if case == 5:
+                response = jsonify({
+                    "code": 50,
+                    "msg": "please use refreshed access token",
+                    "access-token": access_token
+                })
+                response.status_code = 200
+                return response
 
     @auth.verify_password
     def verify_password(email, auth_token):
