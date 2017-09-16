@@ -68,6 +68,18 @@ def create_app(config_name):
         response.status_code = 200
         return response
 
+    def create_tost_summary(access_token, tost, body):
+        return jsonify({
+            "tost": {
+                "access-token": access_token,
+                "creator-id": tost.tost_creator_user_id,
+                "created-at": tost.tost_create_timestamp,
+                "updator-id": tost._tost_updator_user_id,
+                "updated-at": tost._tost_update_timestamp,
+                "body": body
+            }
+        })
+
     @app.route("/tost", methods=["GET", "POST"])
     @auth.login_required
     def tost():
@@ -113,18 +125,46 @@ def create_app(config_name):
             ppgn = Propagation(tost.tost_id, user.user_id)
             ppgn.save()
 
-            response = jsonify({
-                "tost": {
-                    "access-token": ppgn._ppgn_token,
-                    "creator-id": tost.tost_creator_user_id,
-                    "created-at": tost.tost_create_timestamp,
-                    "updator-id": tost._tost_updator_user_id,
-                    "updated-at": tost._tost_update_timestamp,
-                    "body": body
-                }
-            })
+            response = create_tost_summary(ppgn._ppgn_token, tost, body)
             response.status_code = 200
             return response
+
+    def review_access_token(access_token, user_id):
+            ppgn = Propagation.query.filter_by(_ppgn_token=access_token)\
+                                    .filter_by(_ppgn_disabled=False)\
+                                    .filter_by(_ppgn_ancestor_disabled=False)\
+                                    .first()
+
+            if not ppgn:
+                return 1, None
+
+            user_ppgn = Propagation.query.filter_by(ppgn_user_id=user_id)\
+                                         .filter_by(ppgn_tost_id=ppgn.ppgn_tost_id)\
+                                         .filter_by(_ppgn_disabled=False)\
+                                         .filter_by(_ppgn_ancestor_disabled=False)\
+                                         .first()
+
+            if not user_ppgn:
+                new_ppgn = Propagation(ppgn.ppgn_tost_id,
+                                       user_id,
+                                       ppgn.ppgn_id,
+                                       ppgn._ppgn_rank+1)
+                new_ppgn.save()
+
+                return 2, new_ppgn._ppgn_token
+
+            if ppgn.ppgn_id == user_ppgn.ppgn_id:
+                return 3, access_token
+
+            if user_ppgn._ppgn_rank > ppgn._ppgn_rank + 1:
+                user_ppgn._ppgn_parent_id = ppgn.ppgn_id
+                user_ppgn._ppgn_rank = ppgn._ppgn_rank + 1
+                user_ppgn.save()
+
+                return 4, user_ppgn._ppgn_token
+
+            if user_ppgn._ppgn_rank <= ppgn._ppgn_rank + 1:
+                return 5, user_ppgn._ppgn_token
 
     @app.route("/tost/<access_token>", methods=["GET"])
     @auth.login_required
@@ -133,13 +173,10 @@ def create_app(config_name):
         user = User.query.filter_by(_user_auth_token=auth_token).first()
 
         if request.method == "GET":
-            ppgn = Propagation.query.filter_by(_ppgn_token=access_token)\
-                                    .filter_by(_ppgn_disabled=False)\
-                                    .filter_by(_ppgn_ancestor_disabled=False)\
-                                    .first()
+            case, access_token = review_access_token(access_token, user.user_id)
 
             # case 1: propagation invalid
-            if not ppgn:
+            if case == 1:
                 response = jsonify({
                     "code": 40,
                     "msg": "tost not found"
@@ -147,64 +184,24 @@ def create_app(config_name):
                 response.status_code = 404
                 return response
 
-            user_ppgn = Propagation.query.filter_by(ppgn_user_id=user.user_id)\
-                                         .filter_by(ppgn_tost_id=ppgn.ppgn_tost_id)\
-                                         .filter_by(_ppgn_disabled=False)\
-                                         .filter_by(_ppgn_ancestor_disabled=False)\
-                                         .first()
-
             # case 2: user visits resource for the first time
-            if not user_ppgn:
-                new_ppgn = Propagation(ppgn.ppgn_tost_id,
-                                       user.user_id,
-                                       ppgn.ppgn_id,
-                                       ppgn._ppgn_rank+1)
-                new_ppgn.save()
+            if case == 2:
                 return redirect(url_for("tost_by_access_token",
-                                        access_token=new_ppgn._ppgn_token))
+                                        access_token=access_token))
 
             # case 3: user is creator of tost that propagation points to
-            if ppgn.ppgn_id == user_ppgn.ppgn_id:
+            if case in [3, 4]:
+                ppgn = Propagation.query.filter_by(_ppgn_token=access_token).first()
                 tost = Tost.query.filter_by(tost_id=ppgn.ppgn_tost_id).first()
 
-                response = jsonify({
-                    "tost": {
-                        "access-token": access_token,
-                        "creator-id": tost.tost_creator_user_id,
-                        "created-at": tost.tost_create_timestamp,
-                        "updator-id": tost._tost_updator_user_id,
-                        "updated_at": tost._tost_update_timestamp,
-                        "body": tost._tost_body
-                    }
-                })
+                response = create_tost_summary(access_token, tost, tost._tost_body)
                 response.status_code = 200
                 return response
 
-            # case 4: user propagation is of higher priority than propagation in url
-            if user_ppgn._ppgn_rank <= ppgn._ppgn_rank + 1:
+            # case 5: user propagation is of higher priority than propagation in url
+            if case == 5:
                 return redirect(url_for("tost_by_access_token",
-                                        access_token=user_ppgn._ppgn_token))
-
-            # case 5: user propagation is of lower rank than propagation in url
-            if user_ppgn._ppgn_rank > ppgn._ppgn_rank + 1:
-                user_ppgn._ppgn_parent_id = ppgn.ppgn_id
-                user_ppgn._ppgn_rank = ppgn._ppgn_rank + 1
-                user_ppgn.save()
-
-                tost = Tost.query.filter_by(tost_id=user_ppgn.ppgn_tost_id).first()
-
-                response = jsonify({
-                    "tost": {
-                        "access-token": access_token,
-                        "creator-id": tost.tost_creator_user_id,
-                        "created-at": tost.tost_create_timestamp,
-                        "updator-id": tost._tost_updator_user_id,
-                        "updated_at": tost._tost_update_timestamp,
-                        "body": tost._tost_body
-                    }
-                })
-                response.status_code = 200
-                return response
+                                        access_token=access_token))
 
     @auth.verify_password
     def verify_password(email, auth_token):

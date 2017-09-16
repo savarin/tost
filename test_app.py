@@ -88,25 +88,25 @@ class TestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("foo", str(response.data))
 
-        # case 4: user propagation is of higher priority than propagation in url
+        # case 5: user propagation is of lower rank than propagation in url
         response = self.client().post("/signup", data=self.email_2)
         auth_token_2 = ast.literal_eval(response.data)["user"]["id"]
         headers_2 = set_header_auth(self.email_2["email"], auth_token_2)
 
+        response = self.client().get("/tost/" + ppgn_token_1, headers=headers_2)
         response = self.client().get("/tost/" + ppgn_token_0, headers=headers_2)
-        ppgn_token_2 = re.search("\/tost\/[0-9a-f]*", response.data).group(0).split("/")[-1]
-
-        response = self.client().get("/tost/" + ppgn_token_2, headers=headers_2)
         self.assertEqual(response.status_code, 200)
         self.assertIn("foo", str(response.data))
 
-        # case 5: user propagation is of lower rank than propagation in url
+        # case 4: user propagation is of higher priority than propagation in url
         response = self.client().post("/signup", data=self.email_3)
         auth_token_3 = ast.literal_eval(response.data)["user"]["id"]
         headers_3 = set_header_auth(self.email_3["email"], auth_token_3)
 
-        response = self.client().get("/tost/" + ppgn_token_1, headers=headers_3)
         response = self.client().get("/tost/" + ppgn_token_0, headers=headers_3)
+        ppgn_token_2 = re.search("\/tost\/[0-9a-f]*", response.data).group(0).split("/")[-1]
+
+        response = self.client().get("/tost/" + ppgn_token_2, headers=headers_3)
         self.assertEqual(response.status_code, 200)
         self.assertIn("foo", str(response.data))
 
