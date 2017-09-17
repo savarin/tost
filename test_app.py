@@ -75,6 +75,18 @@ class TestCase(unittest.TestCase):
         headers_0 = set_header_auth(self.email_0["email"], auth_token_0)
         body = {"body": "foo"}
 
+        response = self.client().post("/signup", data=self.email_1)
+        auth_token_1 = ast.literal_eval(response.data)["user"]["id"]
+        headers_1 = set_header_auth(self.email_1["email"], auth_token_1)
+
+        response = self.client().post("/signup", data=self.email_2)
+        auth_token_2 = ast.literal_eval(response.data)["user"]["id"]
+        headers_2 = set_header_auth(self.email_2["email"], auth_token_2)
+
+        response = self.client().post("/signup", data=self.email_3)
+        auth_token_3 = ast.literal_eval(response.data)["user"]["id"]
+        headers_3 = set_header_auth(self.email_3["email"], auth_token_3)
+
         # case 3: user is creator of tost that propagation points to
         response = self.client().post("/tost", headers=headers_0, data=body)
         ppgn_token_0 = ast.literal_eval(response.data)["tost"]["access-token"]
@@ -84,10 +96,6 @@ class TestCase(unittest.TestCase):
         self.assertIn("foo", str(response.data))
 
         # case 2: user visits resource for the first time
-        response = self.client().post("/signup", data=self.email_1)
-        auth_token_1 = ast.literal_eval(response.data)["user"]["id"]
-        headers_1 = set_header_auth(self.email_1["email"], auth_token_1)
-
         response = self.client().get("/tost/" + ppgn_token_0, headers=headers_1)
         ppgn_token_1 = re.search("\/tost\/[0-9a-f]{8}", response.data).group(0).split("/")[-1]
 
@@ -96,24 +104,20 @@ class TestCase(unittest.TestCase):
         self.assertIn("foo", str(response.data))
 
         # case 4: user propagation is of lower priority than propagation in url
-        response = self.client().post("/signup", data=self.email_2)
-        auth_token_2 = ast.literal_eval(response.data)["user"]["id"]
-        headers_2 = set_header_auth(self.email_2["email"], auth_token_2)
-
         response = self.client().get("/tost/" + ppgn_token_1, headers=headers_2)
         response = self.client().get("/tost/" + ppgn_token_0, headers=headers_2)
+        ppgn_token_2 = re.search("\/tost\/[0-9a-f]{8}", response.data).group(0).split("/")[-1]
+
+        response = self.client().get("/tost/" + ppgn_token_2, headers=headers_2)
         self.assertEqual(response.status_code, 200)
         self.assertIn("foo", str(response.data))
 
         # case 5: user propagation is of higher priority than propagation in url
-        response = self.client().post("/signup", data=self.email_3)
-        auth_token_3 = ast.literal_eval(response.data)["user"]["id"]
-        headers_3 = set_header_auth(self.email_3["email"], auth_token_3)
-
         response = self.client().get("/tost/" + ppgn_token_0, headers=headers_3)
-        ppgn_token_2 = re.search("\/tost\/[0-9a-f]{8}", response.data).group(0).split("/")[-1]
+        response = self.client().get("/tost/" + ppgn_token_1, headers=headers_3)
+        ppgn_token_3 = re.search("\/tost\/[0-9a-f]{8}", response.data).group(0).split("/")[-1]
 
-        response = self.client().get("/tost/" + ppgn_token_2, headers=headers_3)
+        response = self.client().get("/tost/" + ppgn_token_3, headers=headers_3)
         self.assertEqual(response.status_code, 200)
         self.assertIn("foo", str(response.data))
 
@@ -151,9 +155,44 @@ class TestCase(unittest.TestCase):
         headers_1 = set_header_auth(self.email_1["email"], auth_token_1)
 
         response = self.client().get("/tost/" + ppgn_token_0, headers=headers_1)
-        response = self.client().get("/tost/" + ppgn_token_0 + "/propagation", headers=headers_0)
+        response = self.client().get("/tost/" + ppgn_token_0 + "/propagation",
+                                     headers=headers_0)
         self.assertEqual(response.status_code, 200)
         self.assertIn(self.email_1["email"], str(response.data))
+
+    def test_ppgn_upgrade(self):
+        response = self.client().post("/signup", data=self.email_0)
+        auth_token_0 = ast.literal_eval(response.data)["user"]["id"]
+        headers_0 = set_header_auth(self.email_0["email"], auth_token_0)
+        body = {"body": "foo"}
+
+        response = self.client().post("/signup", data=self.email_1)
+        auth_token_1 = ast.literal_eval(response.data)["user"]["id"]
+        headers_1 = set_header_auth(self.email_1["email"], auth_token_1)
+
+        response = self.client().post("/signup", data=self.email_2)
+        auth_token_2 = ast.literal_eval(response.data)["user"]["id"]
+        headers_2 = set_header_auth(self.email_2["email"], auth_token_2)
+
+        response = self.client().post("/tost", headers=headers_0, data=body)
+        ppgn_token_0 = ast.literal_eval(response.data)["tost"]["access-token"]
+
+        response = self.client().get("/tost/" + ppgn_token_0, headers=headers_1)
+        ppgn_token_1 = re.search("\/tost\/[0-9a-f]{8}", response.data).group(0).split("/")[-1]
+
+        response = self.client().get("/tost/" + ppgn_token_1, headers=headers_2)
+        ppgn_token_2 = re.search("\/tost\/[0-9a-f]{8}", response.data).group(0).split("/")[-1]
+        data = {"src-access-token": ppgn_token_2}
+
+        response = self.client().post("/tost/" + ppgn_token_0 + "/propagation/upgrade",
+                                      headers=headers_0,data=data)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(ppgn_token_2, str(response.data))
+
+        response = self.client().post("/tost/" + ppgn_token_1 + "/propagation/upgrade",
+                                      headers=headers_1, data=data)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("destination not ancestor", str(response.data))
 
     def tearDown(self):
         with self.app.app_context():

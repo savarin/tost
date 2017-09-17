@@ -137,7 +137,6 @@ def create_app(config_name):
                                 .filter_by(_ppgn_ancestor_disabled=False)\
                                 .first()
 
-
     def review_access_token(access_token, user_id):
             ppgn = filter_ppgn_by_token(access_token)
 
@@ -192,12 +191,12 @@ def create_app(config_name):
                 return response
 
             # case 2: user visits resource for the first time
+            # case 4: user propagation is of lower priority than propagation in url
             # case 5: user propagation is of higher priority than propagation in url
-            if case in [2, 5]:
+            if case in [2, 4, 5]:
                 return redirect(url_for("view_tost", access_token=access_token))
 
             # case 3: user is creator of tost that propagation points to
-            # case 4: user propagation is of lower priority than propagation in url
             ppgn = Propagation.query.filter_by(_ppgn_token=access_token).first()
             tost = Tost.query.filter_by(tost_id=ppgn.ppgn_tost_id).first()
 
@@ -218,8 +217,9 @@ def create_app(config_name):
                 return response
 
             # case 2: user visits resource for the first time
+            # case 4: user propagation is of lower priority than propagation in url
             # case 5: user propagation is of higher priority than propagation in url
-            if case in [2, 5]:
+            if case in [2, 4, 5]:
                 response = jsonify({
                     "code": 50,
                     "msg": "please use refreshed access token",
@@ -229,7 +229,6 @@ def create_app(config_name):
                 return response
 
             # case 3: user is creator of tost that propagation points to
-            # case 4: user propagation is of lower priority than propagation in url
             ppgn = Propagation.query.filter_by(_ppgn_token=access_token).first()
             tost = Tost.query.filter_by(tost_id=ppgn.ppgn_tost_id).first()
             tost._tost_body = str(request.data.get("body", ""))
@@ -255,7 +254,6 @@ def create_app(config_name):
             queue = [(ppgn, access_token)]
 
             while queue:
-                print queue
                 ppgn, access_token = queue.pop(0)
                 for child in get_ppgn_children(ppgn.ppgn_id):
                     queue.append((child, child._ppgn_token))
@@ -268,6 +266,45 @@ def create_app(config_name):
 
         response = jsonify({
             "propagations": result
+        })
+        response.status_code = 200
+        return response
+
+    @app.route("/tost/<access_token>/propagation/upgrade", methods=["POST"])
+    @auth.login_required
+    def upgrade_propagation(access_token):
+        src_access_token = str(request.data.get("src-access-token", ""))
+        src_ppgn = filter_ppgn_by_token(src_access_token)
+        ppgn = filter_ppgn_by_token(access_token)
+
+        if not (src_ppgn and ppgn and
+                src_ppgn.ppgn_tost_id == ppgn.ppgn_tost_id and
+                src_ppgn._ppgn_rank >= ppgn._ppgn_rank + 1):
+            response = jsonify({
+                "code": 60,
+                "msg": "destination not ancestor"
+            })
+            response.status_code = 400
+            return response
+
+        if src_ppgn._ppgn_rank > ppgn._ppgn_rank + 1:
+            src_ppgn._ppgn_parent_id = ppgn.ppgn_id
+            src_ppgn._ppgn_rank = ppgn._ppgn_rank + 1
+
+            # BFS to find all child propagations
+            queue = [(src_ppgn, ppgn._ppgn_rank + 1)]
+
+            while queue:
+                ppgn, rank = queue.pop(0)
+                for child in get_ppgn_children(ppgn.ppgn_id):
+                    queue.append((child, rank + 1))
+                    child._ppgn_rank = rank + 1
+
+            src_ppgn.save()
+
+        response = jsonify({
+            "access-token": src_access_token,
+            "parent-access-token": access_token
         })
         response.status_code = 200
         return response
