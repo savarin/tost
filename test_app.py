@@ -97,7 +97,8 @@ class TestCase(unittest.TestCase):
 
         # case 2: user visits resource for the first time
         response = self.client().get("/tost/" + ppgn_token_0, headers=headers_1)
-        ppgn_token_1 = re.search("\/tost\/[0-9a-f]{8}", response.data).group(0).split("/")[-1]
+        ppgn_token_1 = re.search("\/tost\/[0-9a-f]{8}", response.data)\
+                         .group(0).split("/")[-1]
 
         response = self.client().get("/tost/" + ppgn_token_1, headers=headers_1)
         self.assertEqual(response.status_code, 200)
@@ -106,7 +107,8 @@ class TestCase(unittest.TestCase):
         # case 4: user propagation is of lower priority than propagation in url
         response = self.client().get("/tost/" + ppgn_token_1, headers=headers_2)
         response = self.client().get("/tost/" + ppgn_token_0, headers=headers_2)
-        ppgn_token_2 = re.search("\/tost\/[0-9a-f]{8}", response.data).group(0).split("/")[-1]
+        ppgn_token_2 = re.search("\/tost\/[0-9a-f]{8}", response.data)\
+                         .group(0).split("/")[-1]
 
         response = self.client().get("/tost/" + ppgn_token_2, headers=headers_2)
         self.assertEqual(response.status_code, 200)
@@ -115,7 +117,8 @@ class TestCase(unittest.TestCase):
         # case 5: user propagation is of higher priority than propagation in url
         response = self.client().get("/tost/" + ppgn_token_0, headers=headers_3)
         response = self.client().get("/tost/" + ppgn_token_1, headers=headers_3)
-        ppgn_token_3 = re.search("\/tost\/[0-9a-f]{8}", response.data).group(0).split("/")[-1]
+        ppgn_token_3 = re.search("\/tost\/[0-9a-f]{8}", response.data)\
+                         .group(0).split("/")[-1]
 
         response = self.client().get("/tost/" + ppgn_token_3, headers=headers_3)
         self.assertEqual(response.status_code, 200)
@@ -178,21 +181,55 @@ class TestCase(unittest.TestCase):
         ppgn_token_0 = ast.literal_eval(response.data)["tost"]["access-token"]
 
         response = self.client().get("/tost/" + ppgn_token_0, headers=headers_1)
-        ppgn_token_1 = re.search("\/tost\/[0-9a-f]{8}", response.data).group(0).split("/")[-1]
+        ppgn_token_1 = re.search("\/tost\/[0-9a-f]{8}", response.data)\
+                         .group(0).split("/")[-1]
 
         response = self.client().get("/tost/" + ppgn_token_1, headers=headers_2)
-        ppgn_token_2 = re.search("\/tost\/[0-9a-f]{8}", response.data).group(0).split("/")[-1]
+        ppgn_token_2 = re.search("\/tost\/[0-9a-f]{8}", response.data)\
+                         .group(0).split("/")[-1]
         data = {"src-access-token": ppgn_token_2}
 
-        response = self.client().post("/tost/" + ppgn_token_0 + "/propagation/upgrade",
-                                      headers=headers_0,data=data)
+        response = self.client().post("/tost/" + ppgn_token_0 +
+                                      "/propagation/upgrade",
+                                      headers=headers_0, data=data)
         self.assertEqual(response.status_code, 200)
         self.assertIn(ppgn_token_2, str(response.data))
 
-        response = self.client().post("/tost/" + ppgn_token_1 + "/propagation/upgrade",
+        response = self.client().post("/tost/" + ppgn_token_1 +
+                                      "/propagation/upgrade",
                                       headers=headers_1, data=data)
         self.assertEqual(response.status_code, 400)
         self.assertIn("destination not ancestor", str(response.data))
+
+    def test_ppgn_disable(self):
+        response = self.client().post("/signup", data=self.email_0)
+        auth_token_0 = ast.literal_eval(response.data)["user"]["id"]
+        headers_0 = set_header_auth(self.email_0["email"], auth_token_0)
+        body = {"body": "foo"}
+
+        response = self.client().post("/signup", data=self.email_1)
+        auth_token_1 = ast.literal_eval(response.data)["user"]["id"]
+        headers_1 = set_header_auth(self.email_1["email"], auth_token_1)
+
+        response = self.client().post("/tost", headers=headers_0, data=body)
+        ppgn_token_0 = ast.literal_eval(response.data)["tost"]["access-token"]
+
+        response = self.client().get("/tost/" + ppgn_token_0, headers=headers_1)
+        ppgn_token_1 = re.search("\/tost\/[0-9a-f]{8}", response.data)\
+                         .group(0).split("/")[-1]
+        data = {"src-access-token": ppgn_token_1}
+
+        response = self.client().post("/tost/" + ppgn_token_0 +
+                                      "/propagation/disable",
+                                      headers=headers_0, data=data)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(ppgn_token_1, str(response.data))
+
+        response = self.client().post("/tost/" + ppgn_token_1 +
+                                      "/propagation/disable",
+                                      headers=headers_1, data=data)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("target not descendant of " + ppgn_token_1, str(response.data))
 
     def tearDown(self):
         with self.app.app_context():

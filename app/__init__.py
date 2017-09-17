@@ -309,6 +309,42 @@ def create_app(config_name):
         response.status_code = 200
         return response
 
+    @app.route("/tost/<access_token>/propagation/disable", methods=["POST"])
+    @auth.login_required
+    def disable_propagation(access_token):
+        src_access_token = str(request.data.get("src-access-token", ""))
+        src_ppgn = filter_ppgn_by_token(src_access_token)
+        ppgn = filter_ppgn_by_token(access_token)
+
+        if not (src_ppgn and ppgn and
+                src_ppgn.ppgn_tost_id == ppgn.ppgn_tost_id and
+                src_ppgn._ppgn_rank >= ppgn._ppgn_rank + 1):
+            response = jsonify({
+                "code": 70,
+                "msg": "target not descendant of " + access_token
+            })
+            response.status_code = 400
+            return response
+
+        src_ppgn._ppgn_disabled = True
+
+        # BFS to find all child propagations
+        queue = [src_ppgn]
+
+        while queue:
+            ppgn = queue.pop(0)
+            for child in get_ppgn_children(ppgn.ppgn_id):
+                queue.append(child)
+                child._ppgn_ancestor_disabled = True
+
+        src_ppgn.save()
+
+        response = jsonify({
+            "disabled": src_access_token
+        })
+        response.status_code = 200
+        return response
+
     @auth.verify_password
     def verify_password(email, auth_token):
         user = User.query.filter_by(_user_email=email).first()
