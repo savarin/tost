@@ -80,7 +80,7 @@ def create_app(config_name):
             }
         })
 
-    def filter_ppgn_by_user_tost(user_id, tost_id):
+    def get_ppgn_by_user_tost(user_id, tost_id):
         return Propagation.query.filter_by(ppgn_user_id=user_id)\
                                 .filter_by(ppgn_tost_id=tost_id)\
                                 .filter_by(_ppgn_disabled=False)\
@@ -98,7 +98,7 @@ def create_app(config_name):
 
             result = {}
             for tost in tosts:
-                ppgn = filter_ppgn_by_user_tost(user.user_id, tost.tost_id)
+                ppgn = get_ppgn_by_user_tost(user.user_id, tost.tost_id)
                 result[ppgn._ppgn_token[:4]] = tost._tost_body[:32]
 
             response = jsonify(result)
@@ -131,20 +131,24 @@ def create_app(config_name):
             response.status_code = 200
             return response
 
-    def filter_ppgn_by_token(access_token):
+    def get_ppgn_by_token(access_token):
         return Propagation.query.filter_by(_ppgn_token=access_token)\
                                 .filter_by(_ppgn_disabled=False)\
                                 .filter_by(_ppgn_ancestor_disabled=False)\
                                 .first()
 
+    def get_tost_by_token(access_token):
+        ppgn = Propagation.query.filter_by(_ppgn_token=access_token).first()
+        return Tost.query.filter_by(tost_id=ppgn.ppgn_tost_id).first()
+
     def review_access_token(access_token, user_id):
-            ppgn = filter_ppgn_by_token(access_token)
+            ppgn = get_ppgn_by_token(access_token)
 
             # case 1: propagation invalid
             if not ppgn:
                 return 1, None
 
-            user_ppgn = filter_ppgn_by_user_tost(user_id, ppgn.ppgn_tost_id)
+            user_ppgn = get_ppgn_by_user_tost(user_id, ppgn.ppgn_tost_id)
 
             # case 2: user visits resource for the first time
             if not user_ppgn:
@@ -197,8 +201,7 @@ def create_app(config_name):
                 return redirect(url_for("view_tost", access_token=access_token))
 
             # case 3: user is creator of tost that propagation points to
-            ppgn = Propagation.query.filter_by(_ppgn_token=access_token).first()
-            tost = Tost.query.filter_by(tost_id=ppgn.ppgn_tost_id).first()
+            tost = get_tost_by_token(access_token)
 
             response = create_tost_summary(access_token, tost, tost._tost_body)
             response.status_code = 200
@@ -229,15 +232,15 @@ def create_app(config_name):
                 return response
 
             # case 3: user is creator of tost that propagation points to
-            ppgn = Propagation.query.filter_by(_ppgn_token=access_token).first()
-            tost = Tost.query.filter_by(tost_id=ppgn.ppgn_tost_id).first()
+            tost = get_tost_by_token(access_token)
             tost._tost_body = str(request.data.get("body", ""))
             tost.save()
+
             response = create_tost_summary(access_token, tost, tost._tost_body)
             response.status_code = 200
             return response
 
-    def get_ppgn_children(ppgn_id):
+    def filter_ppgn_by_parent_id(ppgn_id):
         return Propagation.query.filter_by(_ppgn_parent_id=ppgn_id)\
                                 .filter_by(_ppgn_disabled=False)\
                                 .filter_by(_ppgn_ancestor_disabled=False)\
@@ -246,7 +249,7 @@ def create_app(config_name):
     @app.route("/tost/<access_token>/propagation", methods=["GET"])
     @auth.login_required
     def propagation(access_token):
-        ppgn = filter_ppgn_by_token(access_token)
+        ppgn = get_ppgn_by_token(access_token)
         result = {}
 
         if ppgn:
@@ -255,7 +258,7 @@ def create_app(config_name):
 
             while queue:
                 ppgn, access_token = queue.pop(0)
-                for child in get_ppgn_children(ppgn.ppgn_id):
+                for child in filter_ppgn_by_parent_id(ppgn.ppgn_id):
                     queue.append((child, child._ppgn_token))
 
                     user = User.query.filter_by(user_id=child.ppgn_user_id).first()
@@ -274,8 +277,8 @@ def create_app(config_name):
     @auth.login_required
     def upgrade_propagation(access_token):
         src_access_token = str(request.data.get("src-access-token", ""))
-        src_ppgn = filter_ppgn_by_token(src_access_token)
-        ppgn = filter_ppgn_by_token(access_token)
+        src_ppgn = get_ppgn_by_token(src_access_token)
+        ppgn = get_ppgn_by_token(access_token)
 
         if not (src_ppgn and ppgn and
                 src_ppgn.ppgn_tost_id == ppgn.ppgn_tost_id and
@@ -296,7 +299,7 @@ def create_app(config_name):
 
             while queue:
                 ppgn, rank = queue.pop(0)
-                for child in get_ppgn_children(ppgn.ppgn_id):
+                for child in filter_ppgn_by_parent_id(ppgn.ppgn_id):
                     queue.append((child, rank + 1))
                     child._ppgn_rank = rank + 1
 
@@ -313,8 +316,8 @@ def create_app(config_name):
     @auth.login_required
     def disable_propagation(access_token):
         src_access_token = str(request.data.get("src-access-token", ""))
-        src_ppgn = filter_ppgn_by_token(src_access_token)
-        ppgn = filter_ppgn_by_token(access_token)
+        src_ppgn = get_ppgn_by_token(src_access_token)
+        ppgn = get_ppgn_by_token(access_token)
 
         if not (src_ppgn and ppgn and
                 src_ppgn.ppgn_tost_id == ppgn.ppgn_tost_id and
@@ -333,7 +336,7 @@ def create_app(config_name):
 
         while queue:
             ppgn = queue.pop(0)
-            for child in get_ppgn_children(ppgn.ppgn_id):
+            for child in filter_ppgn_by_parent_id(ppgn.ppgn_id):
                 queue.append(child)
                 child._ppgn_ancestor_disabled = True
 

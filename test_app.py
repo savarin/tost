@@ -19,6 +19,12 @@ class TestCase(unittest.TestCase):
         self.auth_token_2 = {}
         self.auth_token_3 = {}
 
+    def sign_up(self, email):
+        response = self.client().post("/signup", data=email)
+        auth_token = ast.literal_eval(response.data)["user"]["id"]
+        headers = set_header_auth(email["email"], auth_token)
+        return auth_token, headers
+
     def test_user_signup(self):
         response = self.client().post("/signup", data=self.email_0)
         self.assertEqual(response.status_code, 200)
@@ -42,9 +48,7 @@ class TestCase(unittest.TestCase):
         self.assertIn("invalid token", str(response.data))
 
     def test_tost_create(self):
-        response = self.client().post("/signup", data=self.email_0)
-        auth_token = ast.literal_eval(response.data)["user"]["id"]
-        headers = set_header_auth(self.email_0["email"], auth_token)
+        auth_token, headers = self.sign_up(self.email_0)
         body = {"body": "foo"}
 
         response = self.client().post("/tost", headers=headers, data=body)
@@ -59,9 +63,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
 
     def test_tost_list(self):
-        response = self.client().post("/signup", data=self.email_0)
-        auth_token = ast.literal_eval(response.data)["user"]["id"]
-        headers = set_header_auth(self.email_0["email"], auth_token)
+        auth_token, headers = self.sign_up(self.email_0)
         body = {"body": "foo"}
 
         response = self.client().post("/tost", headers=headers, data=body)
@@ -70,22 +72,11 @@ class TestCase(unittest.TestCase):
         self.assertIn("foo", str(response.data))
 
     def test_tost_view(self):
-        response = self.client().post("/signup", data=self.email_0)
-        auth_token_0 = ast.literal_eval(response.data)["user"]["id"]
-        headers_0 = set_header_auth(self.email_0["email"], auth_token_0)
+        auth_token_0, headers_0 = self.sign_up(self.email_0)
+        auth_token_1, headers_1 = self.sign_up(self.email_1)
+        auth_token_2, headers_2 = self.sign_up(self.email_2)
+        auth_token_3, headers_3 = self.sign_up(self.email_3)
         body = {"body": "foo"}
-
-        response = self.client().post("/signup", data=self.email_1)
-        auth_token_1 = ast.literal_eval(response.data)["user"]["id"]
-        headers_1 = set_header_auth(self.email_1["email"], auth_token_1)
-
-        response = self.client().post("/signup", data=self.email_2)
-        auth_token_2 = ast.literal_eval(response.data)["user"]["id"]
-        headers_2 = set_header_auth(self.email_2["email"], auth_token_2)
-
-        response = self.client().post("/signup", data=self.email_3)
-        auth_token_3 = ast.literal_eval(response.data)["user"]["id"]
-        headers_3 = set_header_auth(self.email_3["email"], auth_token_3)
 
         # case 3: user is creator of tost that propagation points to
         response = self.client().post("/tost", headers=headers_0, data=body)
@@ -130,9 +121,7 @@ class TestCase(unittest.TestCase):
         self.assertIn("tost not found", str(response.data))
 
     def test_tost_edit(self):
-        response = self.client().post("/signup", data=self.email_0)
-        auth_token_0 = ast.literal_eval(response.data)["user"]["id"]
-        headers_0 = set_header_auth(self.email_0["email"], auth_token_0)
+        auth_token_0, headers_0 = self.sign_up(self.email_0)
         body = {"body": "foo"}
 
         # case 3: user is creator of tost that propagation points to
@@ -145,17 +134,12 @@ class TestCase(unittest.TestCase):
         self.assertIn("bar", str(response.data))
 
     def test_ppgn_view(self):
-        response = self.client().post("/signup", data=self.email_0)
-        auth_token_0 = ast.literal_eval(response.data)["user"]["id"]
-        headers_0 = set_header_auth(self.email_0["email"], auth_token_0)
+        auth_token_0, headers_0 = self.sign_up(self.email_0)
+        auth_token_1, headers_1 = self.sign_up(self.email_1)
         body = {"body": "foo"}
 
         response = self.client().post("/tost", headers=headers_0, data=body)
         ppgn_token_0 = ast.literal_eval(response.data)["tost"]["access-token"]
-
-        response = self.client().post("/signup", data=self.email_1)
-        auth_token_1 = ast.literal_eval(response.data)["user"]["id"]
-        headers_1 = set_header_auth(self.email_1["email"], auth_token_1)
 
         response = self.client().get("/tost/" + ppgn_token_0, headers=headers_1)
         response = self.client().get("/tost/" + ppgn_token_0 + "/propagation",
@@ -164,18 +148,10 @@ class TestCase(unittest.TestCase):
         self.assertIn(self.email_1["email"], str(response.data))
 
     def test_ppgn_upgrade(self):
-        response = self.client().post("/signup", data=self.email_0)
-        auth_token_0 = ast.literal_eval(response.data)["user"]["id"]
-        headers_0 = set_header_auth(self.email_0["email"], auth_token_0)
+        auth_token_0, headers_0 = self.sign_up(self.email_0)
+        auth_token_1, headers_1 = self.sign_up(self.email_1)
+        auth_token_2, headers_2 = self.sign_up(self.email_2)
         body = {"body": "foo"}
-
-        response = self.client().post("/signup", data=self.email_1)
-        auth_token_1 = ast.literal_eval(response.data)["user"]["id"]
-        headers_1 = set_header_auth(self.email_1["email"], auth_token_1)
-
-        response = self.client().post("/signup", data=self.email_2)
-        auth_token_2 = ast.literal_eval(response.data)["user"]["id"]
-        headers_2 = set_header_auth(self.email_2["email"], auth_token_2)
 
         response = self.client().post("/tost", headers=headers_0, data=body)
         ppgn_token_0 = ast.literal_eval(response.data)["tost"]["access-token"]
@@ -202,14 +178,9 @@ class TestCase(unittest.TestCase):
         self.assertIn("destination not ancestor", str(response.data))
 
     def test_ppgn_disable(self):
-        response = self.client().post("/signup", data=self.email_0)
-        auth_token_0 = ast.literal_eval(response.data)["user"]["id"]
-        headers_0 = set_header_auth(self.email_0["email"], auth_token_0)
+        auth_token_0, headers_0 = self.sign_up(self.email_0)
+        auth_token_1, headers_1 = self.sign_up(self.email_1)
         body = {"body": "foo"}
-
-        response = self.client().post("/signup", data=self.email_1)
-        auth_token_1 = ast.literal_eval(response.data)["user"]["id"]
-        headers_1 = set_header_auth(self.email_1["email"], auth_token_1)
 
         response = self.client().post("/tost", headers=headers_0, data=body)
         ppgn_token_0 = ast.literal_eval(response.data)["tost"]["access-token"]
