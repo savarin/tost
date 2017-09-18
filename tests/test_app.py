@@ -1,5 +1,5 @@
 from app import create_app, db
-from helpers import set_header_auth
+from helpers import set_headers
 import ast
 import re
 import unittest
@@ -22,7 +22,7 @@ class TestCase(unittest.TestCase):
     def sign_up(self, email):
         response = self.client().post("/signup", data=email)
         auth_token = ast.literal_eval(response.data)["user"]["id"]
-        headers = set_header_auth(email["email"], auth_token)
+        headers = set_headers(email["email"], auth_token, None)
         return auth_token, headers
 
     def test_user_signup(self):
@@ -34,16 +34,16 @@ class TestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("already signed up with that email", str(response.data))
 
-    def test_user_login(self):
+    def test_user_auth(self):
         response = self.client().post("/signup", data=self.email_0)
         auth_token = ast.literal_eval(response.data)["user"]["id"]
         self.auth_token = {"auth_token": auth_token}
 
-        response = self.client().post("/auth", data=self.auth_token)
+        response = self.client().post("/login", data=self.auth_token)
         self.assertEqual(response.status_code, 200)
         self.assertIn("alice@example.com", str(response.data))
 
-        response = self.client().post("/auth", data="")
+        response = self.client().post("/login", data="")
         self.assertEqual(response.status_code, 400)
         self.assertIn("invalid token", str(response.data))
 
@@ -129,7 +129,8 @@ class TestCase(unittest.TestCase):
         ppgn_token_0 = ast.literal_eval(response.data)["tost"]["access-token"]
         body = {"body": "bar"}
 
-        response = self.client().put("/tost/" + ppgn_token_0, headers=headers_0, data=body)
+        response = self.client().put("/tost/" + ppgn_token_0, headers=headers_0,
+                                     data=body)
         self.assertEqual(response.status_code, 200)
         self.assertIn("bar", str(response.data))
 
@@ -200,7 +201,35 @@ class TestCase(unittest.TestCase):
                                       "/propagation/disable",
                                       headers=headers_1, data=data)
         self.assertEqual(response.status_code, 400)
-        self.assertIn("target not descendant of " + ppgn_token_1, str(response.data))
+        self.assertIn("target not descendant of " + ppgn_token_1,
+                      str(response.data))
+
+    def test_response_encoding(self):
+        headers = set_headers(None, None, "bencode")
+        
+        response = self.client().post("/signup", headers=headers,
+                                      data=self.email_0)
+        content = "d4:userd5:email17:alice@example.com2:id8:"
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(content, str(response.data))
+
+        auth_token = re.search("id8\:[0-9a-f]{8}", response.data)\
+                       .group(0).split(":")[-1]
+        self.auth_token = {"auth_token": auth_token}
+        headers = set_headers(None, None, "bencode")
+
+        response = self.client().post("/login", headers=headers,
+                                      data=self.auth_token)
+        content = "d4:userd5:email17:alice@example.com2:id8:"
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(content, str(response.data))
+
+        headers = set_headers(self.email_0["email"], auth_token, "bencode")
+        body = {"body": "foo"}
+
+        response = self.client().post("/tost", headers=headers, data=body)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("body3:foo", str(response.data))
 
     def tearDown(self):
         with self.app.app_context():
