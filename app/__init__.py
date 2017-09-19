@@ -70,6 +70,13 @@ def create_app(config_name):
         response.status_code = 200
         return response
 
+    def get_ppgn_by_user_tost(user_id, tost_id):
+        return Propagation.query.filter_by(ppgn_user_id=user_id)\
+                                .filter_by(ppgn_tost_id=tost_id)\
+                                .filter_by(_ppgn_disabled=False)\
+                                .filter_by(_ppgn_ancestor_disabled=False)\
+                                .first()
+
     def create_tost_summary(access_token, tost, body, encoding=None):
         return compose_response({
             "tost": {
@@ -81,13 +88,6 @@ def create_app(config_name):
                 "body": str(body)
             }
         }, encoding=encoding)
-
-    def get_ppgn_by_user_tost(user_id, tost_id):
-        return Propagation.query.filter_by(ppgn_user_id=user_id)\
-                                .filter_by(ppgn_tost_id=tost_id)\
-                                .filter_by(_ppgn_disabled=False)\
-                                .filter_by(_ppgn_ancestor_disabled=False)\
-                                .first()
 
     @app.route("/tost", methods=["GET", "POST"])
     @auth.login_required
