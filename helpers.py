@@ -55,6 +55,7 @@ def compose_response(content, encoding):
         response = jsonify({
             "content": encode_bencode(content)
         })
+        response.content_type = encoding
     else:
         response = jsonify(content)
 

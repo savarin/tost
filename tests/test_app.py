@@ -209,9 +209,9 @@ class TestCase(unittest.TestCase):
         
         response = self.client().post("/signup", headers=headers,
                                       data=self.email_0)
-        content = "d4:userd5:email17:alice@example.com2:id8:"
         self.assertEqual(response.status_code, 200)
-        self.assertIn(content, str(response.data))
+        self.assertIn("4:userd5:email", str(response.data))
+        self.assertIn("bencode", str(response.content_type))
 
         auth_token = re.search("id8\:[0-9a-f]{8}", response.data)\
                        .group(0).split(":")[-1]
@@ -220,16 +220,17 @@ class TestCase(unittest.TestCase):
 
         response = self.client().post("/login", headers=headers,
                                       data=self.auth_token)
-        content = "d4:userd5:email17:alice@example.com2:id8:"
         self.assertEqual(response.status_code, 200)
-        self.assertIn(content, str(response.data))
+        self.assertIn("4:userd5:email", str(response.data))
+        self.assertIn("bencode", str(response.content_type))
 
         headers = set_headers(self.email_0["email"], auth_token, "bencode")
         body = {"body": "foo"}
 
         response = self.client().post("/tost", headers=headers, data=body)
         self.assertEqual(response.status_code, 200)
-        self.assertIn("body3:foo", str(response.data))
+        self.assertIn("4:body3:foo", str(response.data))
+        self.assertIn("bencode", str(response.content_type))
 
     def tearDown(self):
         with self.app.app_context():
