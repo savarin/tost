@@ -77,10 +77,10 @@ def create_app(config_name):
                                 .filter_by(_ppgn_ancestor_disabled=False)\
                                 .first()
 
-    def create_tost_summary(access_token, tost, body, encoding=None):
+    def create_tost_summary(ppgn_token, tost, body, encoding=None):
         return compose_response({
             "tost": {
-                "access-token": str(access_token),
+                "access-token": str(ppgn_token),
                 "creator-id": str(tost.tost_creator_user_id),
                 "created-at": str(tost.tost_create_timestamp),
                 "updator-id": str(tost._tost_updator_user_id),
@@ -102,7 +102,7 @@ def create_app(config_name):
             result = {}
             for tost in tosts:
                 ppgn = get_ppgn_by_user_tost(user.user_id, tost.tost_id)
-                result[str(ppgn._ppgn_token[:4])] = str(tost._tost_body[:32])
+                result[str(ppgn._ppgn_token)] = str(tost._tost_body[:32])
 
             response = compose_response(result, encoding=encoding)
             response.status_code = 200
@@ -134,14 +134,14 @@ def create_app(config_name):
             response.status_code = 200
             return response
 
-    def get_ppgn_by_token(access_token):
-        return Propagation.query.filter_by(_ppgn_token=access_token)\
+    def get_ppgn_by_token(ppgn_token):
+        return Propagation.query.filter_by(_ppgn_token=ppgn_token)\
                                 .filter_by(_ppgn_disabled=False)\
                                 .filter_by(_ppgn_ancestor_disabled=False)\
                                 .first()
 
-    def get_tost_by_token(access_token):
-        ppgn = Propagation.query.filter_by(_ppgn_token=access_token).first()
+    def get_tost_by_token(ppgn_token):
+        ppgn = Propagation.query.filter_by(_ppgn_token=ppgn_token).first()
         return Tost.query.filter_by(tost_id=ppgn.ppgn_tost_id).first()
 
     def review_access_token(access_token, user_id):
@@ -185,10 +185,9 @@ def create_app(config_name):
         encoding = get_header_encoding(request)
         email, auth_token = get_header_auth(request)
         user = User.query.filter_by(_user_auth_token=auth_token).first()
+        case, ppgn_token = review_access_token(access_token, user.user_id)
 
         if request.method == "GET":
-            case, access_token = review_access_token(access_token, user.user_id)
-
             # case 1: propagation invalid
             if case == 1:
                 response = compose_response({
@@ -202,18 +201,16 @@ def create_app(config_name):
             # case 4: user propagation is of lower priority than propagation in URL
             # case 5: user propagation is of higher priority than propagation in URL
             if case in [2, 4, 5]:
-                return redirect(url_for("view_tost", access_token=access_token))
+                return redirect(url_for("view_tost", access_token=ppgn_token))
 
             # case 3: user is creator of tost that propagation points to
-            tost = get_tost_by_token(access_token)
+            tost = get_tost_by_token(ppgn_token)
 
-            response = create_tost_summary(access_token, tost, tost._tost_body)
+            response = create_tost_summary(ppgn_token, tost, tost._tost_body)
             response.status_code = 200
             return response
 
         if request.method == "PUT":
-            case, access_token = review_access_token(access_token, user.user_id)
-
             # case 1: propagation invalid
             if case == 1:
                 response = compose_response({
@@ -230,17 +227,17 @@ def create_app(config_name):
                 response = compose_response({
                     "code": 50,
                     "msg": "please use refreshed access token",
-                    "access-token": str(access_token)
+                    "access-token": str(ppgn_token)
                 }, encoding=encoding)
                 response.status_code = 302
                 return response
 
             # case 3: user is creator of tost that propagation points to
-            tost = get_tost_by_token(access_token)
+            tost = get_tost_by_token(ppgn_token)
             tost._tost_body = str(request.data.get("body", ""))
             tost.save()
 
-            response = create_tost_summary(access_token, tost, tost._tost_body)
+            response = create_tost_summary(ppgn_token, tost, tost._tost_body)
             response.status_code = 200
             return response
 
@@ -262,14 +259,14 @@ def create_app(config_name):
             queue = [(ppgn, access_token)]
 
             while queue:
-                ppgn, access_token = queue.pop(0)
+                ppgn, ppgn_token = queue.pop(0)
                 for child in filter_ppgn_by_parent_id(ppgn.ppgn_id):
                     queue.append((child, child._ppgn_token))
 
                     user = User.query.filter_by(user_id=child.ppgn_user_id).first()
                     result[user._user_email] = {
                         "access-token": str(child._ppgn_token),
-                        "parent-access-token": str(access_token)
+                        "parent-access-token": str(ppgn_token)
                     }
 
         response = compose_response({
@@ -286,7 +283,7 @@ def create_app(config_name):
         src_ppgn = get_ppgn_by_token(src_access_token)
         ppgn = get_ppgn_by_token(access_token)
 
-        # return 400 if user propagation not descendant of propagion in URL
+        # return 400 if user propagation not descendant of propagation in URL
         if not (src_ppgn and ppgn and
                 src_ppgn.ppgn_tost_id == ppgn.ppgn_tost_id and
                 src_ppgn._ppgn_rank >= ppgn._ppgn_rank + 1):
@@ -328,7 +325,7 @@ def create_app(config_name):
         src_ppgn = get_ppgn_by_token(src_access_token)
         ppgn = get_ppgn_by_token(access_token)
 
-        # return 400 if user propagation not descendant of propagion in URL
+        # return 400 if user propagation not descendant of propagation in URL
         if not (src_ppgn and ppgn and
                 src_ppgn.ppgn_tost_id == ppgn.ppgn_tost_id and
                 src_ppgn._ppgn_rank >= ppgn._ppgn_rank + 1):
