@@ -70,12 +70,11 @@ def create_app(config_name):
         response.status_code = 200
         return response
 
-    def get_ppgn_by_user_tost(user_id, tost_id):
+    def filter_ppgn_by_user_id(user_id):
         return Propagation.query.filter_by(ppgn_user_id=user_id)\
-                                .filter_by(ppgn_tost_id=tost_id)\
                                 .filter_by(_ppgn_disabled=False)\
                                 .filter_by(_ppgn_ancestor_disabled=False)\
-                                .first()
+                                .all()
 
     def create_tost_summary(ppgn_token, tost, body, encoding=None):
         return compose_response({
@@ -97,11 +96,12 @@ def create_app(config_name):
         user = User.query.filter_by(_user_auth_token=auth_token).first()
 
         if request.method == "GET":
-            tosts = Tost.query.filter_by(tost_creator_user_id=user.user_id).all()
+            ppgns = filter_ppgn_by_user_id(user.user_id)
+            print len(ppgns)
 
             result = {}
-            for tost in tosts:
-                ppgn = get_ppgn_by_user_tost(user.user_id, tost.tost_id)
+            for ppgn in ppgns:
+                tost = Tost.query.filter_by(tost_id=ppgn.ppgn_tost_id).first()
                 result[str(ppgn._ppgn_token)] = str(tost._tost_body[:32])
 
             response = compose_response(result, encoding=encoding)
@@ -134,15 +134,22 @@ def create_app(config_name):
             response.status_code = 200
             return response
 
+    def get_tost_by_token(ppgn_token):
+        ppgn = Propagation.query.filter_by(_ppgn_token=ppgn_token).first()
+        return Tost.query.filter_by(tost_id=ppgn.ppgn_tost_id).first()
+
     def get_ppgn_by_token(ppgn_token):
         return Propagation.query.filter_by(_ppgn_token=ppgn_token)\
                                 .filter_by(_ppgn_disabled=False)\
                                 .filter_by(_ppgn_ancestor_disabled=False)\
                                 .first()
 
-    def get_tost_by_token(ppgn_token):
-        ppgn = Propagation.query.filter_by(_ppgn_token=ppgn_token).first()
-        return Tost.query.filter_by(tost_id=ppgn.ppgn_tost_id).first()
+    def get_ppgn_by_user_tost(user_id, tost_id):
+        return Propagation.query.filter_by(ppgn_user_id=user_id)\
+                                .filter_by(ppgn_tost_id=tost_id)\
+                                .filter_by(_ppgn_disabled=False)\
+                                .filter_by(_ppgn_ancestor_disabled=False)\
+                                .first()
 
     def review_access_token(access_token, user_id):
         ppgn = get_ppgn_by_token(access_token)
