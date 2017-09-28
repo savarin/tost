@@ -1,6 +1,6 @@
 from app import create_app, db
 from helpers import set_headers
-import ast
+import json
 import re
 import unittest
 
@@ -21,7 +21,7 @@ class TestCase(unittest.TestCase):
 
     def sign_up(self, email):
         response = self.client().post("/signup", data=email)
-        auth_token = ast.literal_eval(response.data)["user"]["id"]
+        auth_token = json.loads(response.data)["user"]["id"]
         headers = set_headers(email["email"], auth_token, None)
         return auth_token, headers
 
@@ -36,7 +36,7 @@ class TestCase(unittest.TestCase):
 
     def test_user_auth(self):
         response = self.client().post("/signup", data=self.email_0)
-        auth_token = ast.literal_eval(response.data)["user"]["id"]
+        auth_token = json.loads(response.data)["user"]["id"]
         self.auth_token = {"auth_token": auth_token}
 
         response = self.client().post("/login", data=self.auth_token)
@@ -80,7 +80,7 @@ class TestCase(unittest.TestCase):
 
         # case 3: user is creator of tost that propagation points to
         response = self.client().post("/tost", headers=headers_0, data=body)
-        ppgn_token_0 = ast.literal_eval(response.data)["tost"]["access-token"]
+        ppgn_token_0 = json.loads(response.data)["tost"]["access-token"]
 
         response = self.client().get("/tost/" + ppgn_token_0, headers=headers_0)
         self.assertEqual(response.status_code, 200)
@@ -126,7 +126,7 @@ class TestCase(unittest.TestCase):
 
         # case 3: user is creator of tost that propagation points to
         response = self.client().post("/tost", headers=headers_0, data=body)
-        ppgn_token_0 = ast.literal_eval(response.data)["tost"]["access-token"]
+        ppgn_token_0 = json.loads(response.data)["tost"]["access-token"]
         body = {"body": "bar"}
 
         response = self.client().put("/tost/" + ppgn_token_0, headers=headers_0,
@@ -140,7 +140,7 @@ class TestCase(unittest.TestCase):
         body = {"body": "foo"}
 
         response = self.client().post("/tost", headers=headers_0, data=body)
-        ppgn_token_0 = ast.literal_eval(response.data)["tost"]["access-token"]
+        ppgn_token_0 = json.loads(response.data)["tost"]["access-token"]
 
         response = self.client().get("/tost/" + ppgn_token_0, headers=headers_1)
         response = self.client().get("/tost/" + ppgn_token_0 + "/propagation",
@@ -155,7 +155,7 @@ class TestCase(unittest.TestCase):
         body = {"body": "foo"}
 
         response = self.client().post("/tost", headers=headers_0, data=body)
-        ppgn_token_0 = ast.literal_eval(response.data)["tost"]["access-token"]
+        ppgn_token_0 = json.loads(response.data)["tost"]["access-token"]
 
         response = self.client().get("/tost/" + ppgn_token_0, headers=headers_1)
         ppgn_token_1 = re.search("\/tost\/[0-9a-f]{8}", response.data)\
@@ -184,7 +184,7 @@ class TestCase(unittest.TestCase):
         body = {"body": "foo"}
 
         response = self.client().post("/tost", headers=headers_0, data=body)
-        ppgn_token_0 = ast.literal_eval(response.data)["tost"]["access-token"]
+        ppgn_token_0 = json.loads(response.data)["tost"]["access-token"]
 
         response = self.client().get("/tost/" + ppgn_token_0, headers=headers_1)
         ppgn_token_1 = re.search("\/tost\/[0-9a-f]{8}", response.data)\
