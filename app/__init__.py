@@ -97,7 +97,6 @@ def create_app(config_name):
 
         if request.method == "GET":
             ppgns = filter_ppgn_by_user_id(user.user_id)
-            print len(ppgns)
 
             result = {}
             for ppgn in ppgns:
@@ -213,7 +212,7 @@ def create_app(config_name):
             # case 3: user is creator of tost that propagation points to
             tost = get_tost_by_token(ppgn_token)
 
-            response = create_tost_summary(ppgn_token, tost, tost._tost_body)
+            response = create_tost_summary(ppgn_token, tost, tost._tost_body, encoding)
             response.status_code = 200
             return response
 
@@ -244,7 +243,7 @@ def create_app(config_name):
             tost._tost_body = str(request.data.get("body", ""))
             tost.save()
 
-            response = create_tost_summary(ppgn_token, tost, tost._tost_body)
+            response = create_tost_summary(ppgn_token, tost, tost._tost_body, encoding)
             response.status_code = 200
             return response
 
