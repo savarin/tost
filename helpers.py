@@ -41,7 +41,7 @@ def encode_bencode(element):
     elif isinstance(element, int):
         return "i" + str(element) + "e"
 
-    elif isinstance(element, str):
+    elif isinstance(element, str) or isinstance(element, unicode):
         return str(len(element)) + ":" + str(element)
 
     elif isinstance(element, list):
