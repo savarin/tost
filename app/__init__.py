@@ -357,7 +357,8 @@ def create_app(config_name):
         src_ppgn.save()
 
         response = compose_response({
-            "disabled": str(src_access_token)
+            "access-token": str(src_access_token),
+            "parent-access-token": str(access_token)
         }, encoding=encoding)
         response.status_code = 200
         return response
