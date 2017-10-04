@@ -10,10 +10,10 @@ class TestCase(unittest.TestCase):
     def setUp(self):
         self.app = create_app(config_name="testing")
         self.client = self.app.test_client
-        self.email_0 = {"email": "alice@example.com"}
-        self.email_1 = {"email": "bob@example.com"}
-        self.email_2 = {"email": "carol@example.com"}
-        self.email_3 = {"email": "david@example.com"}
+        self.email_0 = {"email": "alice@example.com", "signup_token": "939df2ec"}
+        self.email_1 = {"email": "bob@example.com", "signup_token": "d7b8440d"}
+        self.email_2 = {"email": "carol@example.com", "signup_token": "99bc43de"}
+        self.email_3 = {"email": "david@example.com", "signup_token": "9835df6"}
         self.auth_token_0 = {}
         self.auth_token_1 = {}
         self.auth_token_2 = {}

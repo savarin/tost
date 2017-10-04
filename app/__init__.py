@@ -26,6 +26,7 @@ def create_app(config_name):
     def signup():
         encoding = get_header_encoding(request)
         email = str(request.data.get("email", ""))
+        signup_token = str(request.data.get("signup_token", ""))
         user = User.query.filter_by(_user_email=email).first()
 
         if user:
@@ -36,7 +37,7 @@ def create_app(config_name):
             response.status_code = 400
             return response
 
-        user = User(email=email)
+        user = User(email=email, signup_token=signup_token)
         user.save()
         response = compose_response({
             "user": {
@@ -109,6 +110,7 @@ def create_app(config_name):
 
         elif request.method == "POST":
             body = str(request.data.get("body", ""))
+            creation_token = str(request.data.get("creation_token", ""))
 
             if not body:
                 response = compose_response({
@@ -123,7 +125,7 @@ def create_app(config_name):
                 response.status_code = 400
                 return response
 
-            tost = Tost(body, user.user_id)
+            tost = Tost(body, user.user_id, creation_token)
             tost.save()
 
             ppgn = Propagation(tost.tost_id, user.user_id)
