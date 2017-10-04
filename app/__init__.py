@@ -243,6 +243,8 @@ def create_app(config_name):
             # case 3: user is creator of tost that propagation points to
             tost = get_tost_by_token(ppgn_token)
             tost._tost_body = str(request.data.get("body", ""))
+            tost._tost_updator_user_id = user.user_id
+            tost._tost_update_timestamp = db.func.current_timestamp()
             tost.save()
 
             response = create_tost_summary(ppgn_token, tost, tost._tost_body, encoding)
