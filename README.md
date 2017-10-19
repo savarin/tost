@@ -21,62 +21,51 @@ This project is licensed under the MIT License.
 ### Example
 
     $ tost signup alice@example.com
-    > signing you up ...
-    > done. you have been emailed an access token
+    > successful signup for alice@example.com with id 37ecd127
     
-    $ tost signup alice@example.com
-    > that email address has already signed up, search your email for an auth token
+    $ tost login 37ecd127
+    > successful login for alice@example.com with id 37ecd127
     
-    $ tost list
-    > you have not signed in
-    > run: tost signin <<auth token that was emailed to you>>
+    $ tost create foo
+    > successful create for tost with access token b1d6cefb
     
-    $ tost signin alice@example.com foo
-    > signing you in ...
-    > incorrect auth token
+    $ tost view b1d6cefb
+    > b1d6cefb: foo
     
-    $ tost signin alice@example.com 4561e50a
-    > signing you in ...
-    > done
     
-    $ tost signin bob@example.com 6a503ca1
-    > signing you up ...
-    > done
-    # bob is granted access to alice's tost simply by learning the id (grant) alice uses to access the document
+    $ tost signup bob@example.com
+    > successful signup for bob@example.com with id 66ddfcc8
     
-    $ tost show e7aa3f47
-    > downloading ...
-    > id: 43076e69
-    2017Q3 projections
-    profits: up
-    costs: down
-    # he gets his own grant
+    $ tost login 66ddfcc8
+    > successful login for bob@example.com with id 66ddfcc8
     
-    $ tost list
-    430         
-    2017Q3 projections         
-    by: alice@example.com
-    # alice learns that bob has accessed the tost
+    $ tost view b1d6cefb
+    > 5f3bd80c: foo
+    # bob is granted access to alice’s tost simply by accessing the grant alice uses to access the document
+    # bob gets his own grant
     
-    $ tost signin alice@example.com 4561e50a
-    > signing you in ...
-    > done
-    $ tost list
-    e7a
-    2017Q3 projections
-    [1 grant]
     
-    $ tost grants e7a
-    bob@example.com
-    # ... time passes, more grants are issued ...
+    $ tost signup carol@example.com
+    > successful signup for carol@example.com with id 12c52e0e
     
-    $ tost grants e7a
-    bob@example.com
-    carol@example.com
-    daniel@example.com
-    eloise@example.com
+    $ tost login 12c52e0e
+    > successful login for carol@example.com with id 12c52e0e
     
-    $ tost grants e7a revoke daniel@example.com
-    > revoking access for daniel@example.com ...
-    > done. access for the following downstream users was also revoked:
-    > eloise@example.com
+    $ tost view 5f3bd80c
+    > 10a5245e: foo
+    # carol is granted access to alice’s tost simply by accessing the grant bob uses to access the document
+    # carol gets her own grant
+    
+    
+    $ tost login 37ecd127
+    > successful login for alice@example.com with id 37ecd127
+    
+    $ tost access b1d6cefb
+    > 5f3bd80c: bob@example.com
+    > 10a5245e: carol@example.com
+    > successful access request
+    # alice reviews grants to access the document
+    
+    $ tost disable b1d6cefb 5f3bd80c
+    > successful disable for tost with access token 5f3bd80c
+    # alice revokes bob’s access, which in turn revokes carol’s access
