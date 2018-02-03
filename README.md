@@ -1,24 +1,20 @@
-*This project was completed as a part of Bradfield's API class, September 2018.*
+# tost
 
-tost
-====
+*This project was completed as a part of Bradfield's API class.*
 
-tost is a text snippets RESTful API with a capability-based permissions model.
+## Introduction
 
-### Components
+tost is a text snippets API with a capability-based permissions model.
 
-* tost - server API
-* tost-client - client library
-* tost-cli - command line interface
-* tost-web - web interface
+## Components
 
-
-### License
-
-This project is licensed under the MIT License.
+* [tost](https://github.com/savarin/tost) - server API
+* [tost-client](https://github.com/savarin/tost-client) - client library
+* [tost-cli](https://github.com/savarin/tost-cli) - command line interface
+* [tost-web](https://github.com/savarin/tost-web) - web interface
 
 
-### Example
+## Example
 
     $ tost signup alice@example.com
     > successful signup for alice@example.com with id 37ecd127
